@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin Coaster — Centrifuge Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0b0e;
+    --surface:   #111318;
+    --panel:     #16191f;
+    --border:    #252930;
+    --accent:    #e8ff47;
+    --accent2:   #ff6b35;
+    --danger:    #ff3b30;
+    --safe:      #30d158;
+    --muted:     #454c5c;
+    --text:      #e8eaf0;
+    --subtext:   #6b7280;
+    --font-disp: 'Bebas Neue', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- Animated background grid ---- */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,71,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,71,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: spin-slow 8s linear infinite;
+  }
+
+  .logo-icon svg { width: 28px; height: 28px; }
+
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .logo-text h1 {
+    font-family: var(--font-disp);
+    font-size: 2.2rem;
+    letter-spacing: 2px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .logo-text p {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--subtext);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .connection-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .connection-badge:hover { border-color: var(--muted); }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .dot.connected    { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+  .dot.error        { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: pulse-dot 1s infinite; }
+  .dot.running      { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* ---- Main grid ---- */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: auto auto;
+    gap: 16px;
+  }
+
+  /* ---- Panel base ---- */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+  }
+
+  .panel-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--subtext);
+    margin-bottom: 20px;
+  }
+
+  /* ---- Speedometer panel ---- */
+  .speedo-panel {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .speedo-wrap {
+    position: relative;
+    width: 280px;
+    height: 160px;
+    margin: 8px auto 0;
+  }
+
+  .speedo-arc {
+    width: 280px;
+    height: 280px;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .speedo-center {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  .rpm-value {
+    font-family: var(--font-disp);
+    font-size: 5rem;
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.3s;
+    letter-spacing: 2px;
+  }
+
+  .rpm-unit {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+    color: var(--subtext);
+    text-transform: uppercase;
+    margin-top: -4px;
+  }
+
+  .rpm-target {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+
+  .rpm-target span {
+    color: var(--accent);
+  }
+
+  /* ---- State badge ---- */
+  .state-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .state-badge {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--subtext);
+    transition: all 0.3s;
+  }
+
+  .state-badge.idle         { border-color: var(--border); color: var(--subtext); }
+  .state-badge.ramping_up   { border-color: #f59e0b; color: #f59e0b; }
+  .state-badge.running      { border-color: var(--safe); color: var(--safe); }
+  .state-badge.ramping_down { border-color: var(--accent2); color: var(--accent2); }
+  .state-badge.error        { border-color: var(--danger); color: var(--danger); animation: pulse-badge 1s infinite; }
+
+  @keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
+  /* ---- Timer panel ---- */
+  .timer-panel {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .timer-display {
+    font-family: var(--font-disp);
+    font-size: 4rem;
+    letter-spacing: 4px;
+    text-align: center;
+    margin: 12px 0;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+
+  .timer-display.urgent { color: var(--accent2); }
+
+  .timer-bar-wrap {
+    background: var(--surface);
+    border-radius: 4px;
+    height: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .timer-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    width: 100%;
+    transition: width 1s linear, background 0.3s;
+  }
+
+  .timer-bar.urgent { background: var(--accent2); }
+
+  /* ---- Safety panel ---- */
+  .safety-panel {
+    margin-top: 20px;
+    flex: 1;
+  }
+
+  .safety-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .safety-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+    transition: border-color 0.3s;
+  }
+
+  .safety-item.ok     { border-color: rgba(48,209,88,0.3); }
+  .safety-item.warn   { border-color: rgba(255,59,48,0.4); }
+
+  .safety-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .safety-item.ok   .safety-dot { background: var(--safe);   box-shadow: 0 0 6px var(--safe); }
+  .safety-item.warn .safety-dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  /* ---- Controls panel ---- */
+  .controls-panel {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .controls-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .control-group h3 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--subtext);
+    margin-bottom: 12px;
+  }
+
+  /* ---- Presets ---- */
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .preset-btn {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--subtext);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .preset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(232,255,71,0.06);
+  }
+
+  .preset-btn.active {
+    border-color: var(--accent);
+    color: var(--bg);
+    background: var(--accent);
+  }
+
+  /* ---- Slider ---- */
+  .slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .slider-val {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--accent);
+    min-width: 60px;
+    text-align: right;
+  }
+
+  /* ---- Number input ---- */
+  .num-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .num-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .num-input:focus { border-color: var(--accent); }
+
+  .num-input::placeholder { color: var(--muted); }
+
+  .set-btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .set-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- Time presets ---- */
+  .time-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  /* ---- Action panel ---- */
+  .action-panel {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-start {
+    width: 100%;
+    padding: 20px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: var(--font-disp);
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-start::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .btn-start:hover::after { opacity: 0.1; }
+  .btn-start:active { transform: scale(0.98); }
+  .btn-start:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  .btn-stop {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--accent2);
+    background: transparent;
+    color: var(--accent2);
+    font-family: var(--font-disp);
+    font-size: 1.4rem;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-stop:hover { background: rgba(255,107,53,0.1); }
+  .btn-stop:active { transform: scale(0.98); }
+  .btn-stop:disabled { border-color: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  .btn-emergency {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,59,48,0.3);
+    background: rgba(255,59,48,0.07);
+    color: var(--danger);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-emergency:hover { background: rgba(255,59,48,0.15); border-color: var(--danger); }
+
+  .btn-clear {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--subtext);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+  }
+
+  .btn-clear.visible { display: block; }
+  .btn-clear:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ---- Toast ---- */
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error { border-color: var(--danger); color: var(--danger); }
+  #toast.success { border-color: var(--safe); color: var(--safe); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 700px) {
+    .grid { grid-template-columns: 1fr; }
+    .timer-panel, .action-panel { grid-column: 1; }
+    .timer-panel { grid-row: 2; }
+    .controls-panel { grid-row: 3; }
+    .action-panel { grid-row: 4; }
+    .controls-inner { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0a0b0e" stroke-width="2.5" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2a10 10 0 0 1 10 10"/>
+          <path d="M12 22A10 10 0 0 1 2 12"/>
+          <path d="M2 12a10 10 0 0 1 5-8.66"/>
+          <path d="M22 12a10 10 0 0 1-5 8.66"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <h1>Spin Coaster</h1>
+        <p>Centrifuge Control System</p>
+      </div>
+    </div>
+    <div class="connection-badge" onclick="togglePortModal()">
+      <div class="dot" id="conn-dot"></div>
+      <span id="conn-label">Disconnected</span>
+    </div>
+  </header>
+
+  <!-- Main grid -->
+  <div class="grid">
+
+    <!-- Speedometer -->
+    <div class="panel speedo-panel">
+      <div class="panel-label">Live Speed</div>
+      <div class="speedo-wrap">
+        <svg class="speedo-arc" viewBox="0 0 280 280">
+          <!-- Track -->
+          <path id="arc-track" d="M 30 220 A 110 110 0 1 1 250 220"
+            fill="none" stroke="#252930" stroke-width="12" stroke-linecap="round"/>
+          <!-- Progress -->
+          <path id="arc-progress" d="M 30 220 A 110 110 0 1 1 250 220"
+            fill="none" stroke="#e8ff47" stroke-width="12" stroke-linecap="round"
+            stroke-dasharray="0 1000"
+            style="transition: stroke-dasharray 0.4s ease, stroke 0.3s;"/>
+        </svg>
+        <div class="speedo-center">
+          <div class="rpm-value" id="rpm-display">0</div>
+          <div class="rpm-unit">RPM</div>
+        </div>
+      </div>
+      <div class="rpm-target">Target: <span id="target-display">—</span> RPM</div>
+      <div class="state-row">
+        <div class="state-badge idle" id="state-badge">IDLE</div>
+      </div>
+    </div>
+
+    <!-- Timer + Safety -->
+    <div class="panel timer-panel">
+      <div class="panel-label">Time Remaining</div>
+      <div class="timer-display" id="timer-display">00:00</div>
+      <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timer-bar"></div>
+      </div>
+
+      <div class="safety-panel">
+        <div class="panel-label" style="margin-top:24px;">Safety Status</div>
+        <div class="safety-grid">
+          <div class="safety-item" id="safe-lid">
+            <div class="safety-dot"></div>
+            <span>Lid Closed</span>
+          </div>
+          <div class="safety-item" id="safe-level">
+            <div class="safety-dot"></div>
+            <span>Balanced</span>
+          </div>
+          <div class="safety-item ok" id="safe-temp">
+            <div class="safety-dot"></div>
+            <span>Temp OK</span>
+          </div>
+          <div class="safety-item ok" id="safe-surface">
+            <div class="safety-dot"></div>
+            <span>On Surface</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="panel controls-panel">
+      <div class="panel-label">Parameters</div>
+      <div class="controls-inner">
+
+        <!-- RPM -->
+        <div class="control-group">
+          <h3>Speed (RPM)</h3>
+          <div class="presets" id="rpm-presets">
+            <button class="preset-btn" onclick="setRPM(100)">100</button>
+            <button class="preset-btn" onclick="setRPM(500)">500</button>
+            <button class="preset-btn" onclick="setRPM(1000)">1000</button>
+            <button class="preset-btn" onclick="setRPM(1500)">1500</button>
+            <button class="preset-btn" onclick="setRPM(2000)">2000</button>
+            <button class="preset-btn" onclick="setRPM(2500)">2500</button>
+            <button class="preset-btn" onclick="setRPM(3000)">3000</button>
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-row">
+              <input type="range" id="rpm-slider" min="0" max="3000" step="50" value="0"
+                oninput="onRPMSlider(this.value)">
+              <span class="slider-val" id="rpm-slider-val">0</span>
+            </div>
+          </div>
+          <div class="num-input-row">
+            <input class="num-input" type="number" id="rpm-input" placeholder="Custom RPM" min="0" max="3000">
+            <button class="set-btn" onclick="setRPMFromInput()">Set</button>
+          </div>
+        </div>
+
+        <!-- Duration -->
+        <div class="control-group">
+          <h3>Duration</h3>
+          <div class="presets time-presets">
+            <button class="preset-btn" onclick="setDuration(5)">5s</button>
+            <button class="preset-btn" onclick="setDuration(10)">10s</button>
+            <button class="preset-btn" onclick="setDuration(30)">30s</button>
+            <button class="preset-btn" onclick="setDuration(60)">1m</button>
+            <button class="preset-btn" onclick="setDuration(120)">2m</button>
+            <button class="preset-btn" onclick="setDuration(300)">5m</button>
+            <button class="preset-btn" onclick="setDuration(600)">10m</button>
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-row">
+              <input type="range" id="dur-slider" min="0" max="600" step="5" value="0"
+                oninput="onDurSlider(this.value)">
+              <span class="slider-val" id="dur-slider-val">0s</span>
+            </div>
+          </div>
+          <div class="num-input-row">
+            <input class="num-input" type="number" id="min-input" placeholder="Min" min="0" max="10" style="max-width:80px">
+            <input class="num-input" type="number" id="sec-input" placeholder="Sec" min="0" max="59" style="max-width:80px">
+            <button class="set-btn" onclick="setDurationFromInputs()">Set</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="panel action-panel">
+      <div class="panel-label">Controls</div>
+      <button class="btn-start" id="btn-start" onclick="startRun()">START</button>
+      <button class="btn-stop" id="btn-stop" onclick="stopRun()" disabled>STOP</button>
+      <button class="btn-emergency" onclick="emergencyStop()">⚠ Emergency Stop</button>
+      <button class="btn-clear visible" id="btn-clear" onclick="clearError()" style="display:none">Clear Error</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ==================== STATE ====================
+let targetRPM = 0;
+let targetDurSec = 0;
+let totalDurSec = 0;
+let pollInterval = null;
+let isRunning = false;
+
+// Arc geometry
+const ARC_LENGTH = 534; // approximate SVG arc path length for semicircle-ish arc
+const MAX_RPM = 3000;
+
+// ==================== POLLING ====================
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(fetchStatus, 250);
+}
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    updateUI(data);
+  } catch(e) {
+    updateConnectionBadge(false);
+  }
+}
+
+// ==================== UI UPDATE ====================
+function updateUI(d) {
+  // Connection
+  updateConnectionBadge(d.connected, d.state);
+
+  // RPM arc
+  const pct = Math.min(d.current_rpm / MAX_RPM, 1);
+  const dashLen = pct * ARC_LENGTH;
+  const arc = document.getElementById('arc-progress');
+  arc.setAttribute('stroke-dasharray', `${dashLen} ${ARC_LENGTH}`);
+  const arcColor = d.state === 'ERROR' ? '#ff3b30'
+                 : d.state === 'RUNNING' ? '#e8ff47'
+                 : d.state === 'RAMPING_UP' ? '#f59e0b'
+                 : '#454c5c';
+  arc.style.stroke = arcColor;
+
+  // RPM display
+  document.getElementById('rpm-display').textContent = d.current_rpm.toLocaleString();
+  document.getElementById('target-display').textContent = d.target_rpm > 0 ? d.target_rpm.toLocaleString() : '—';
+
+  // State badge
+  const badge = document.getElementById('state-badge');
+  badge.textContent = d.state.replace('_', ' ');
+  badge.className = 'state-badge ' + d.state.toLowerCase();
+
+  // Timer
+  const remSec = Math.round(d.remaining_ms / 1000);
+  const mins = Math.floor(remSec / 60);
+  const secs = remSec % 60;
+  const timerEl = document.getElementById('timer-display');
+  timerEl.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  timerEl.classList.toggle('urgent', remSec > 0 && remSec <= 10);
+
+  // Timer bar
+  const bar = document.getElementById('timer-bar');
+  if (totalDurSec > 0 && d.state === 'RUNNING') {
+    const barPct = remSec / totalDurSec * 100;
+    bar.style.width = barPct + '%';
+    bar.classList.toggle('urgent', remSec <= 10);
+  } else if (d.state === 'IDLE' || d.state === 'DISCONNECTED') {
+    bar.style.width = '100%';
+    bar.classList.remove('urgent');
+  }
+
+  // Safety indicators
+  setSafety('safe-lid',   d.lid_closed);
+  setSafety('safe-level', d.level);
+
+  // Buttons
+  isRunning = ['RAMPING_UP','RUNNING','RAMPING_DOWN'].includes(d.state);
+  document.getElementById('btn-start').disabled = isRunning;
+  document.getElementById('btn-stop').disabled  = !isRunning;
+
+  const clearBtn = document.getElementById('btn-clear');
+  clearBtn.style.display = d.state === 'ERROR' ? 'block' : 'none';
+}
+
+function setSafety(id, ok) {
+  const el = document.getElementById(id);
+  el.className = 'safety-item ' + (ok ? 'ok' : 'warn');
+}
+
+function updateConnectionBadge(connected, state) {
+  const dot = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  dot.className = 'dot';
+  if (!connected) {
+    label.textContent = 'Disconnected';
+  } else if (state === 'ERROR') {
+    dot.classList.add('error');
+    label.textContent = 'Error';
+  } else if (['RUNNING','RAMPING_UP','RAMPING_DOWN'].includes(state)) {
+    dot.classList.add('running');
+    label.textContent = 'Running';
+  } else {
+    dot.classList.add('connected');
+    label.textContent = 'Connected';
+  }
+}
+
+// ==================== CONTROLS ====================
+function setRPM(rpm) {
+  targetRPM = rpm;
+  document.getElementById('rpm-slider').value = rpm;
+  document.getElementById('rpm-slider-val').textContent = rpm;
+  document.getElementById('rpm-input').value = rpm;
+  highlightPreset('rpm-presets', rpm);
+}
+
+function onRPMSlider(val) {
+  val = parseInt(val);
+  targetRPM = val;
+  document.getElementById('rpm-slider-val').textContent = val;
+  document.getElementById('rpm-input').value = val;
+  highlightPreset('rpm-presets', val);
+}
+
+function setRPMFromInput() {
+  const val = parseInt(document.getElementById('rpm-input').value);
+  if (isNaN(val) || val < 0 || val > 3000) { toast('RPM must be 0–3000', 'error'); return; }
+  setRPM(val);
+}
+
+function setDuration(sec) {
+  targetDurSec = sec;
+  document.getElementById('dur-slider').value = sec;
+  document.getElementById('dur-slider-val').textContent = sec >= 60 ? `${sec/60}m` : `${sec}s`;
+  document.getElementById('min-input').value = Math.floor(sec / 60) || '';
+  document.getElementById('sec-input').value = sec % 60 || '';
+  highlightPreset('dur-presets', sec);
+}
+
+function onDurSlider(val) {
+  val = parseInt(val);
+  targetDurSec = val;
+  const label = val >= 60 ? `${Math.round(val/60*10)/10}m` : `${val}s`;
+  document.getElementById('dur-slider-val').textContent = label;
+}
+
+function setDurationFromInputs() {
+  const mins = parseInt(document.getElementById('min-input').value) || 0;
+  const secs = parseInt(document.getElementById('sec-input').value) || 0;
+  const total = mins * 60 + secs;
+  if (total <= 0 || total > 600) { toast('Duration must be 1s–10min', 'error'); return; }
+  setDuration(total);
+}
+
+function highlightPreset(containerId, val) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.textContent) === val ||
+      btn.onclick?.toString().includes(`(${val})`));
+  });
+}
+
+// ==================== ACTIONS ====================
+async function startRun() {
+  if (targetRPM <= 0)    { toast('Set a target RPM first', 'error'); return; }
+  if (targetDurSec <= 0) { toast('Set a duration first', 'error'); return; }
+
+  totalDurSec = targetDurSec;
+  try {
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({rpm: targetRPM, duration_sec: targetDurSec})
+    });
+    const data = await res.json();
+    if (!data.ok) toast(data.error || 'Failed to start', 'error');
+    else toast(`Starting at ${targetRPM} RPM`, 'success');
+  } catch(e) { toast('Connection error', 'error'); }
+}
+
+async function stopRun() {
+  try {
+    await fetch('/api/stop', {method:'POST'});
+    toast('Stopping — ramp down initiated', 'success');
+  } catch(e) { toast('Connection error', 'error'); }
+}
+
+async function emergencyStop() {
+  try {
+    await fetch('/api/emergency_stop', {method:'POST'});
+    toast('Emergency stop triggered', 'error');
+  } catch(e) { toast('Connection error', 'error'); }
+}
+
+async function clearError() {
+  try {
+    await fetch('/api/clear_error', {method:'POST'});
+  } catch(e) { toast('Connection error', 'error'); }
+}
+
+// ==================== TOAST ====================
+let toastTimer = null;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ==================== INIT ====================
+startPolling();
+</script>
+</body>
+</html>

@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merry-Go-Round Lab 🎠</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream:   #fdf6e8;
+    --pink:    #ff8fab;
+    --pink2:   #ffb3c6;
+    --yellow:  #ffd166;
+    --mint:    #06d6a0;
+    --sky:     #74c0fc;
+    --lavender:#c77dff;
+    --coral:   #ff6b6b;
+    --stripe1: #ff8fab;
+    --stripe2: #ffd166;
+    --pole:    #c9a96e;
+    --wood:    #e8c99a;
+    --shadow:  rgba(180,120,80,0.15);
+    --text:    #5c3d2e;
+    --subtext: #9e7b6a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--cream);
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='20' font-size='20'>⭐</text></svg>") 12 12, auto;
+  }
+
+  /* ---- Polka dot background ---- */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, var(--pink2) 2px, transparent 2px);
+    background-size: 36px 36px;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 20px 48px;
+  }
+
+  /* ==================== HEADER ==================== */
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .bunting {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 12px;
+  }
+
+  .flag {
+    width: 28px;
+    height: 22px;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    margin: 0 2px;
+    animation: flag-sway 2s ease-in-out infinite;
+  }
+
+  .flag:nth-child(odd)  { animation-delay: 0s; }
+  .flag:nth-child(even) { animation-delay: 0.3s; }
+
+  @keyframes flag-sway {
+    0%,100% { transform: rotate(-4deg); }
+    50%      { transform: rotate(4deg); }
+  }
+
+  .flag-colors { --cs: var(--pink), var(--yellow), var(--mint), var(--sky), var(--lavender), var(--coral); }
+
+  header h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 3rem;
+    color: var(--pink);
+    text-shadow: 3px 3px 0 var(--yellow), 5px 5px 0 rgba(255,139,171,0.2);
+    line-height: 1;
+    letter-spacing: 1px;
+  }
+
+  header p {
+    font-size: 0.95rem;
+    color: var(--subtext);
+    margin-top: 6px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  /* Connection pill */
+  .conn-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    border: 2px solid var(--pink2);
+    border-radius: 999px;
+    padding: 6px 18px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--subtext);
+    margin-top: 12px;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+
+  .conn-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ccc;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .conn-dot.connected    { background: var(--mint);   box-shadow: 0 0 8px var(--mint); }
+  .conn-dot.running      { background: var(--yellow);  box-shadow: 0 0 8px var(--yellow); animation: pulse-dot 0.8s infinite; }
+  .conn-dot.error        { background: var(--coral);   box-shadow: 0 0 8px var(--coral); animation: pulse-dot 0.5s infinite; }
+
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ==================== CAROUSEL ==================== */
+  .carousel-section {
+    position: relative;
+    margin: 0 auto 32px;
+    width: 340px;
+    height: 340px;
+  }
+
+  /* Outer decorative ring */
+  .carousel-roof {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 30px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--stripe1) 0px, var(--stripe1) 20px,
+      var(--stripe2) 20px, var(--stripe2) 40px
+    );
+    border-radius: 8px 8px 0 0;
+    z-index: 4;
+    box-shadow: 0 -2px 0 var(--pole);
+  }
+
+  /* Spinning platform */
+  .carousel-ring {
+    position: absolute;
+    top: 20px; left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: conic-gradient(
+      var(--stripe1) 0deg 45deg, var(--stripe2) 45deg 90deg,
+      var(--mint) 90deg 135deg, var(--sky) 135deg 180deg,
+      var(--stripe1) 180deg 225deg, var(--stripe2) 225deg 270deg,
+      var(--lavender) 270deg 315deg, var(--pink2) 315deg 360deg
+    );
+    box-shadow: 0 8px 32px var(--shadow), 0 2px 0 var(--wood);
+    animation: carousel-spin 8s linear infinite;
+    animation-play-state: paused;
+  }
+
+  .carousel-ring.spinning {
+    animation-play-state: running;
+  }
+
+  /* Center hub */
+  .carousel-hub {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, var(--wood), var(--pole));
+    border: 4px solid var(--pole);
+    box-shadow: 0 4px 16px var(--shadow);
+    z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+  }
+
+  @keyframes carousel-spin {
+    from { transform: translateX(-50%) rotate(0deg); }
+    to   { transform: translateX(-50%) rotate(360deg); }
+  }
+
+  /* Animals on the carousel */
+  .animal {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 64px; height: 64px;
+    margin: -32px 0 0 -32px;
+    display: flex; flex-direction: column; align-items: center;
+    transform-origin: 0 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .animal-emoji {
+    font-size: 2.2rem;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15));
+    animation: animal-bob 1.2s ease-in-out infinite;
+  }
+
+  .animal:nth-child(1) .animal-emoji { animation-delay: 0s; }
+  .animal:nth-child(2) .animal-emoji { animation-delay: 0.3s; }
+  .animal:nth-child(3) .animal-emoji { animation-delay: 0.6s; }
+  .animal:nth-child(4) .animal-emoji { animation-delay: 0.9s; }
+
+  @keyframes animal-bob {
+    0%,100% { transform: translateY(0px); }
+    50%      { transform: translateY(-6px); }
+  }
+
+  .animal-pole {
+    width: 3px;
+    height: 70px;
+    background: linear-gradient(to bottom, var(--pole), var(--wood));
+    border-radius: 2px;
+    margin-top: 2px;
+  }
+
+  /* RPM display inside hub area */
+  .rpm-center {
+    position: absolute;
+    bottom: -10px; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 10;
+    background: white;
+    border: 3px solid var(--pink2);
+    border-radius: 20px;
+    padding: 10px 28px;
+    box-shadow: 0 4px 16px var(--shadow);
+    min-width: 180px;
+  }
+
+  .rpm-number {
+    font-family: 'Fredoka One', cursive;
+    font-size: 3rem;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .rpm-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--subtext);
+    text-transform: uppercase;
+  }
+
+  .rpm-target-line {
+    font-size: 0.75rem;
+    color: var(--pink);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  /* State badge */
+  .state-badge {
+    display: inline-block;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    padding: 6px 20px;
+    border-radius: 999px;
+    background: var(--yellow);
+    color: var(--text);
+    margin-top: 16px;
+    box-shadow: 0 3px 0 rgba(180,130,0,0.25);
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .state-badge.running      { background: var(--mint);    color: white; }
+  .state-badge.ramping_up   { background: var(--yellow);  color: var(--text); }
+  .state-badge.ramping_down { background: var(--sky);     color: var(--text); }
+  .state-badge.error        { background: var(--coral);   color: white; animation: pulse-dot 1s infinite; }
+  .state-badge.idle         { background: #ede0d4;        color: var(--subtext); }
+
+  /* ==================== CARDS ==================== */
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 4px 16px var(--shadow);
+    border: 2px solid transparent;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 5px;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .card-rpm::before    { background: var(--pink); }
+  .card-time::before   { background: var(--sky); }
+  .card-safety::before { background: var(--mint); }
+
+  .card:hover { transform: translateY(-2px); }
+
+  .card-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--subtext);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ---- RPM Card ---- */
+  .presets-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 12px;
+  }
+
+  .preset {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.85rem;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 2px solid var(--pink2);
+    background: white;
+    color: var(--pink);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .preset:hover, .preset.active {
+    background: var(--pink);
+    border-color: var(--pink);
+    color: white;
+    transform: scale(1.05);
+  }
+
+  .preset.time-preset:hover, .preset.time-preset.active {
+    background: var(--sky);
+    border-color: var(--sky);
+    color: white;
+  }
+
+  .custom-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .cute-input {
+    flex: 1;
+    border: 2px solid var(--pink2);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    background: white;
+  }
+
+  .cute-input:focus { border-color: var(--pink); }
+  .cute-input.time  { border-color: var(--sky); }
+  .cute-input.time:focus { border-color: #339af0; }
+
+  .cute-btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.85rem;
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: none;
+    background: var(--pink);
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 3px 0 rgba(220,80,100,0.3);
+  }
+
+  .cute-btn:hover   { transform: translateY(-1px); box-shadow: 0 4px 0 rgba(220,80,100,0.3); }
+  .cute-btn:active  { transform: translateY(1px);  box-shadow: none; }
+  .cute-btn.sky     { background: var(--sky); box-shadow: 0 3px 0 rgba(50,150,220,0.3); }
+  .cute-btn.sky:hover { box-shadow: 0 4px 0 rgba(50,150,220,0.3); }
+
+  /* ---- Timer card ---- */
+  .timer-big {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.8rem;
+    color: var(--text);
+    text-align: center;
+    line-height: 1;
+    margin: 8px 0;
+    transition: color 0.3s;
+  }
+
+  .timer-big.urgent { color: var(--coral); }
+
+  .progress-track {
+    background: #f0e6d3;
+    border-radius: 99px;
+    height: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sky), var(--mint));
+    border-radius: 99px;
+    width: 100%;
+    transition: width 1s linear, background 0.3s;
+  }
+
+  .progress-fill.urgent { background: linear-gradient(90deg, var(--yellow), var(--coral)); }
+
+  .time-inputs {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    align-items: center;
+  }
+
+  .time-sep {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    color: var(--subtext);
+  }
+
+  /* ---- Safety card ---- */
+  .safety-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .safety-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #f9f5ee;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    border: 2px solid transparent;
+    transition: all 0.3s;
+  }
+
+  .safety-row.ok   { border-color: rgba(6,214,160,0.3); background: rgba(6,214,160,0.08); }
+  .safety-row.warn { border-color: rgba(255,107,107,0.3); background: rgba(255,107,107,0.08); }
+
+  .safety-icon { font-size: 1.1rem; }
+
+  /* ==================== ACTION BUTTONS ==================== */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 0;
+  }
+
+  .btn-go, .btn-whoa {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+    padding: 18px 20px;
+    border-radius: 20px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-go {
+    background: linear-gradient(135deg, var(--pink), var(--lavender));
+    box-shadow: 0 6px 0 rgba(180,80,150,0.3);
+  }
+
+  .btn-whoa {
+    background: linear-gradient(135deg, var(--pink), var(--lavender));
+    box-shadow: 0 6px 0 rgba(180,80,150,0.3);
+  }
+
+  .btn-go:hover   { transform: translateY(-2px); box-shadow: 0 8px 0 rgba(180,80,150,0.3); }
+  .btn-go:active  { transform: translateY(3px);  box-shadow: 0 3px 0 rgba(180,80,150,0.3); }
+  .btn-whoa:hover  { transform: translateY(-2px); box-shadow: 0 8px 0 rgba(180,80,150,0.3); }
+  .btn-whoa:active { transform: translateY(3px);  box-shadow: 0 3px 0 rgba(180,80,150,0.3); }
+
+  .btn-go:disabled {
+    background: linear-gradient(135deg, #f7c5d5, #ddb8f5);
+    color: rgba(255,255,255,0.85);
+    box-shadow: 0 4px 0 rgba(180,80,150,0.1);
+    cursor: not-allowed; transform: none;
+  }
+
+  .btn-whoa:disabled {
+    background: linear-gradient(135deg, #f7c5d5, #ddb8f5);
+    color: rgba(255,255,255,0.85);
+    box-shadow: 0 4px 0 rgba(180,80,150,0.1);
+    cursor: not-allowed; transform: none;
+  }
+
+  .btn-clear-err {
+    grid-column: 1 / -1;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    padding: 12px;
+    border-radius: 14px;
+    border: 2px solid var(--lavender);
+    background: white;
+    color: var(--lavender);
+    cursor: pointer;
+    display: none;
+    transition: all 0.15s;
+  }
+
+  .btn-clear-err.visible { display: block; }
+  .btn-clear-err:hover { background: var(--lavender); color: white; }
+
+  /* ==================== TOAST ==================== */
+  #toast {
+    position: fixed;
+    bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: white;
+    border: 3px solid var(--pink2);
+    border-radius: 16px;
+    padding: 12px 28px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 8px 24px var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #toast.show   { transform: translateX(-50%) translateY(0); }
+  #toast.error  { border-color: var(--coral); }
+  #toast.success{ border-color: var(--mint); }
+
+  /* ==================== MISC ==================== */
+  .text-center { text-align: center; }
+
+  @media (max-width: 700px) {
+    .cards { grid-template-columns: 1fr; }
+    header h1 { font-size: 2.2rem; }
+    .carousel-section { width: 280px; height: 280px; }
+    .carousel-ring { width: 240px; height: 240px; }
+    .carousel-roof { width: 240px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <!-- Bunting flags -->
+    <div class="bunting" id="bunting"></div>
+    <h1>🎠 Merry-Go-Round 🎠</h1>
+    <p>Centrifuge Control System</p>
+    <div class="conn-pill">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-label">Disconnected</span>
+    </div>
+  </header>
+
+  <!-- Carousel visual -->
+  <div class="text-center">
+    <div class="carousel-section">
+      <div class="carousel-roof"></div>
+      <div class="carousel-ring" id="carousel-ring">
+        <!-- Animals placed by JS -->
+      </div>
+      <div class="carousel-hub">⭐</div>
+      <div class="rpm-center">
+        <div class="rpm-number" id="rpm-now">0</div>
+        <div class="rpm-label">RPM</div>
+        <div class="rpm-target-line" id="rpm-tgt-line">Target: —</div>
+      </div>
+    </div>
+    <div style="margin-top: 60px;">
+      <div class="state-badge idle" id="state-badge">Ready to Spin!</div>
+    </div>
+  </div>
+
+  <!-- Cards row -->
+  <div class="cards" style="margin-top: 28px;">
+
+    <!-- RPM Card -->
+    <div class="card card-rpm">
+      <div class="card-title">🐇 Speed (RPM)</div>
+      <div class="presets-wrap" id="rpm-presets">
+        <button class="preset" onclick="setRPM(100)">100</button>
+        <button class="preset" onclick="setRPM(500)">500</button>
+        <button class="preset" onclick="setRPM(1000)">1k</button>
+        <button class="preset" onclick="setRPM(1500)">1.5k</button>
+        <button class="preset" onclick="setRPM(2000)">2k</button>
+        <button class="preset" onclick="setRPM(2500)">2.5k</button>
+        <button class="preset" onclick="setRPM(3000)">3k</button>
+      </div>
+      <div class="custom-row">
+        <input class="cute-input" type="number" id="rpm-in" placeholder="Custom…" min="0" max="3000">
+        <button class="cute-btn" onclick="setRPMFromInput()">Set!</button>
+      </div>
+    </div>
+
+    <!-- Timer Card -->
+    <div class="card card-time">
+      <div class="card-title">🐢 Duration</div>
+      <div class="timer-big" id="timer-disp">00:00</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="prog-bar"></div>
+      </div>
+      <div class="presets-wrap" style="margin-top:10px;" id="time-presets">
+        <button class="preset time-preset" onclick="setDur(5)">5s</button>
+        <button class="preset time-preset" onclick="setDur(10)">10s</button>
+        <button class="preset time-preset" onclick="setDur(30)">30s</button>
+        <button class="preset time-preset" onclick="setDur(60)">1m</button>
+        <button class="preset time-preset" onclick="setDur(120)">2m</button>
+        <button class="preset time-preset" onclick="setDur(300)">5m</button>
+        <button class="preset time-preset" onclick="setDur(600)">10m</button>
+      </div>
+      <div class="time-inputs">
+        <input class="cute-input time" type="number" id="min-in" placeholder="Min" min="0" max="10" style="max-width:70px">
+        <span class="time-sep">:</span>
+        <input class="cute-input time" type="number" id="sec-in" placeholder="Sec" min="0" max="59" style="max-width:70px">
+        <button class="cute-btn sky" onclick="setDurFromInputs()">Set!</button>
+      </div>
+    </div>
+
+    <!-- Safety Card -->
+    <div class="card card-safety">
+      <div class="card-title">🛡️ Safety Check</div>
+      <div class="safety-list">
+        <div class="safety-row ok" id="safe-lid">
+          <span class="safety-icon">🔒</span> Lid Closed
+        </div>
+        <div class="safety-row ok" id="safe-level">
+          <span class="safety-icon">⚖️</span> Balanced
+        </div>
+        <div class="safety-row ok" id="safe-temp">
+          <span class="safety-icon">🌡️</span> Temp OK
+        </div>
+        <div class="safety-row ok" id="safe-surface">
+          <span class="safety-icon">📍</span> On Surface
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Action buttons -->
+  <div class="actions">
+    <button class="btn-go" id="btn-go" onclick="startRun()">🎠 Let's Spin!</button>
+    <button class="btn-whoa" id="btn-whoa" onclick="stopRun()" disabled>🛑 Whoa There!</button>
+    <button class="btn-clear-err" id="btn-clear" onclick="clearError()">✨ Clear Error & Try Again</button>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ==================== ANIMALS & BUNTING ====================
+const ANIMALS = ['🐇','🦊','🐻','🦄'];
+const ANIMAL_ANGLES = [0, 90, 180, 270];
+const RING_RADIUS = 80; // px from center
+
+const FLAG_COLORS = ['#ff8fab','#ffd166','#06d6a0','#74c0fc','#c77dff','#ff6b6b','#ffb3c6','#a9def9'];
+
+// Build bunting
+const buntingEl = document.getElementById('bunting');
+for (let i = 0; i < 14; i++) {
+  const f = document.createElement('div');
+  f.className = 'flag';
+  f.style.background = FLAG_COLORS[i % FLAG_COLORS.length];
+  buntingEl.appendChild(f);
+}
+
+// Place animals on carousel ring
+// Ring is 300x300. Hub is centered in carousel-section at top:50% left:50%
+// carousel-section is 340px tall, ring starts at top:20px
+// So hub center within ring coords: x=150, y=(340/2 - 20)=150
+const ring = document.getElementById('carousel-ring');
+const CENTER_X = 164;
+const CENTER_Y = 150;
+ANIMALS.forEach((emoji, i) => {
+  const angle = (ANIMAL_ANGLES[i] - 90) * Math.PI / 180;
+  const yOffset = i === 0 ? 10 : 0;
+  const x = CENTER_X + RING_RADIUS * Math.cos(angle) - 16;
+  const y = CENTER_Y + RING_RADIUS * Math.sin(angle) - 16 + yOffset;
+
+  const div = document.createElement('div');
+  div.className = 'animal';
+  div.style.cssText = `top:${y}px; left:${x}px; position:absolute; display:flex; flex-direction:column; align-items:center;`;
+  div.innerHTML = `
+    <div class="animal-emoji" style="font-size:2rem;animation:animal-bob 1.2s ease-in-out infinite;animation-delay:${i*0.3}s">${emoji}</div>
+  `;
+  ring.appendChild(div);
+});
+
+// ==================== STATE ====================
+let targetRPM = 0;
+let targetDurSec = 0;
+let totalDurSec = 0;
+const MAX_RPM = 3000;
+
+// ==================== POLLING ====================
+setInterval(fetchStatus, 250);
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const d = await res.json();
+    updateUI(d);
+  } catch(e) {
+    document.getElementById('conn-dot').className = 'conn-dot';
+    document.getElementById('conn-label').textContent = 'Disconnected';
+  }
+}
+
+// ==================== UI UPDATE ====================
+function updateUI(d) {
+  // Connection badge
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-label');
+  dot.className = 'conn-dot';
+  if (!d.connected) { lbl.textContent = 'Disconnected'; }
+  else if (d.state === 'ERROR') { dot.classList.add('error'); lbl.textContent = 'Uh oh!'; }
+  else if (['RUNNING','RAMPING_UP','RAMPING_DOWN'].includes(d.state)) { dot.classList.add('running'); lbl.textContent = 'Spinning!'; }
+  else { dot.classList.add('connected'); lbl.textContent = 'Connected ✓'; }
+
+  // Carousel spin speed
+  const isActive = ['RUNNING','RAMPING_UP','RAMPING_DOWN'].includes(d.state);
+  const spinDur = d.current_rpm > 0
+    ? Math.max(0.5, 8 * (1 - d.current_rpm / MAX_RPM * 0.85))
+    : 8;
+  ring.style.animationDuration = spinDur + 's';
+  ring.classList.toggle('spinning', isActive && d.current_rpm > 0);
+
+  // RPM
+  document.getElementById('rpm-now').textContent = d.current_rpm.toLocaleString();
+  document.getElementById('rpm-tgt-line').textContent =
+    d.target_rpm > 0 ? `Target: ${d.target_rpm.toLocaleString()} RPM` : 'Target: —';
+
+  // State badge
+  const badge = document.getElementById('state-badge');
+  const stateLabels = {
+    IDLE: 'Ready to Spin! 🌟', RAMPING_UP: 'Speeding Up! 🐇',
+    RUNNING: 'Wheee! 🎉', RAMPING_DOWN: 'Slowing Down... 🐢',
+    ERROR: 'Uh Oh! 😬', DISCONNECTED: 'Not Connected'
+  };
+  badge.textContent = stateLabels[d.state] || d.state;
+  badge.className = 'state-badge ' + d.state.toLowerCase();
+
+  // Timer
+  const remSec = Math.round(d.remaining_ms / 1000);
+  const m = Math.floor(remSec / 60), s = remSec % 60;
+  const timerEl = document.getElementById('timer-disp');
+  timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  timerEl.classList.toggle('urgent', remSec > 0 && remSec <= 10);
+
+  // Progress bar
+  const bar = document.getElementById('prog-bar');
+  if (totalDurSec > 0 && d.state === 'RUNNING') {
+    bar.style.width = (remSec / totalDurSec * 100) + '%';
+    bar.classList.toggle('urgent', remSec <= 10);
+  } else if (['IDLE','DISCONNECTED'].includes(d.state)) {
+    bar.style.width = '100%';
+    bar.classList.remove('urgent');
+  }
+
+  // Safety
+  setSafe('safe-lid',     d.lid_closed);
+  setSafe('safe-level',   d.level);
+  setSafe('safe-temp',    true);
+  setSafe('safe-surface', true);
+
+  // Buttons
+  const active = isActive;
+  document.getElementById('btn-go').disabled   = active;
+  document.getElementById('btn-whoa').disabled  = !active;
+  const clearBtn = document.getElementById('btn-clear');
+  clearBtn.classList.toggle('visible', d.state === 'ERROR');
+  clearBtn.style.display = d.state === 'ERROR' ? 'block' : 'none';
+}
+
+function setSafe(id, ok) {
+  document.getElementById(id).className = 'safety-row ' + (ok ? 'ok' : 'warn');
+}
+
+// ==================== CONTROLS ====================
+function setRPM(rpm) {
+  targetRPM = rpm;
+  document.getElementById('rpm-in').value = rpm;
+  document.querySelectorAll('#rpm-presets .preset').forEach(b => {
+    b.classList.toggle('active', parseInt(b.textContent) === rpm ||
+      b.textContent === rpm/1000 + 'k' ||
+      b.textContent === (rpm/1000) + 'k');
+  });
+}
+
+function setRPMFromInput() {
+  const v = parseInt(document.getElementById('rpm-in').value);
+  if (isNaN(v) || v < 0 || v > 3000) { toast('RPM needs to be 0–3000! 🙈', 'error'); return; }
+  setRPM(v);
+}
+
+function setDur(sec) {
+  targetDurSec = sec;
+  document.getElementById('min-in').value = Math.floor(sec/60) || '';
+  document.getElementById('sec-in').value = sec % 60 || '';
+}
+
+function setDurFromInputs() {
+  const m = parseInt(document.getElementById('min-in').value) || 0;
+  const s = parseInt(document.getElementById('sec-in').value) || 0;
+  const total = m * 60 + s;
+  if (total <= 0 || total > 600) { toast('Duration needs to be 1s–10min! 🙉', 'error'); return; }
+  setDur(total);
+}
+
+// ==================== ACTIONS ====================
+async function startRun() {
+  if (targetRPM <= 0)    { toast("Pick a speed first! 🐇", 'error'); return; }
+  if (targetDurSec <= 0) { toast("Pick a duration first! 🐢", 'error'); return; }
+  totalDurSec = targetDurSec;
+  try {
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({rpm: targetRPM, duration_sec: targetDurSec})
+    });
+    const d = await res.json();
+    if (!d.ok) toast(d.error || 'Something went wrong 😿', 'error');
+    else toast(`Whoosh! Starting at ${targetRPM} RPM 🎠`, 'success');
+  } catch(e) { toast('Connection error 😿', 'error'); }
+}
+
+async function stopRun() {
+  try {
+    await fetch('/api/stop', {method:'POST'});
+    toast('Slowing down... 🐢', 'success');
+  } catch(e) { toast('Connection error 😿', 'error'); }
+}
+
+async function clearError() {
+  try {
+    await fetch('/api/clear_error', {method:'POST'});
+  } catch(e) { toast('Connection error 😿', 'error'); }
+}
+
+// ==================== SPARKLES ====================
+document.addEventListener('mousemove', (e) => {
+  const count = 3;
+  for (let i = 0; i < count; i++) {
+    const sparkle = document.createElement('div');
+    const size = 9 + Math.random() * 14;
+    sparkle.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      font-size: ${size}px;
+      left: ${e.clientX - size/2}px;
+      top: ${e.clientY - size/2}px;
+      opacity: 1;
+      transition: opacity 1.2s ease, transform 1.2s ease;
+      user-select: none;
+      color: white;
+      text-shadow: 0 0 6px rgba(255,180,210,0.9), 0 0 12px rgba(255,180,210,0.5);
+    `;
+    sparkle.textContent = Math.random() > 0.5 ? '✦' : '✧';
+    document.body.appendChild(sparkle);
+
+    const angle = Math.random() * 360;
+    const dist = 25 + Math.random() * 40;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist;
+
+    requestAnimationFrame(() => {
+      sparkle.style.transform = `translate(${dx}px, ${dy}px) scale(0)`;
+      sparkle.style.opacity = '0';
+    });
+
+    setTimeout(() => sparkle.remove(), 1250);
+  }
+});
+
+// ==================== TOAST ====================
+const TOAST_EMOJIS = { error: '😬', success: '🌟', '': '💬' };
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.innerHTML = `<span>${TOAST_EMOJIS[type]||'💬'}</span> ${msg}`;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+</script>
+</body>
+</html>
